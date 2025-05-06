@@ -1,0 +1,73 @@
+name: budgetboard
+services:
+  client:
+    image: ghcr.io/teelur/budget-board/client:release
+    container_name: budgetboard-client
+    hostname: budgetboard-client
+    restart: always
+    pull_policy: always
+    environment:
+      VITE_API_URL: budgetboard-client
+      PORT: 80
+    ports:
+      - '127.0.0.1:58001:80'
+    depends_on:
+      - db
+      - server
+    networks:
+      - budgetboard
+
+  server:
+    image: ghcr.io/teelur/budget-board/server:release
+    container_name: budgetboard-server
+    hostname: budgetboard-server
+    restart: always
+    pull_policy: always
+    environment:
+      Logging__LogLevel__Default: Information
+      CLIENT_URL: budgetboard-client
+      POSTGRES_HOST: budgetboard-db
+      POSTGRES_DATABASE: budgetboard
+      POSTGRES_USER: budgetboarduser
+      POSTGRES_PASSWORD: budgetboardpass
+      AUTO_UPDATE_DB: true
+    depends_on:
+      - db
+    networks:
+      - budgetboard
+
+  db:
+    image: postgres:17
+    container_name: budgetboard-db
+    hostname: budgetboard-db
+    restart: always
+    pull_policy: always
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - /var/lib/srv/$USER/docker/teelur/budget-board/server/release/rootfs/data/db/postgres:/var/lib/postgresql/data:rw
+    environment:
+      POSTGRES_DB: budgetboard
+      POSTGRES_USER: budgetboarduser
+      POSTGRES_PASSWORD: budgetboardpass
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'pg_isready',
+          '-q',
+          '-d',
+          'budgetboard',
+          '-U',
+          'budgetboarduser',
+        ]
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    networks:
+      - budgetboard
+
+networks:
+  budgetboard:
+    name: budgetboard
+    external: false
