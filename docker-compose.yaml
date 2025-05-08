@@ -1,4 +1,12 @@
+# nginx proxy address - http://172.17.0.1:60236
+
 name: budgetboard
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
 services:
   client:
     image: ghcr.io/teelur/budget-board/client:release
@@ -6,9 +14,10 @@ services:
     hostname: budgetboard-client
     restart: always
     pull_policy: always
+    logging: *default-logging
     environment:
-      VITE_API_URL: budgetboard-client
       PORT: 80
+      VITE_API_URL: budgetboard-client
     ports:
       - '127.0.0.1:58001:80'
     depends_on:
@@ -23,16 +32,18 @@ services:
     hostname: budgetboard-server
     restart: always
     pull_policy: always
+    logging: *default-logging
     environment:
-      Logging__LogLevel__Default: Information
-      CLIENT_URL: budgetboard-client
-      POSTGRES_HOST: budgetboard-db
-      POSTGRES_DATABASE: budgetboard
-      POSTGRES_USER: budgetboarduser
-      POSTGRES_PASSWORD: budgetboardpass
-      AUTO_UPDATE_DB: true
+      - AUTO_UPDATE_DB=true
+      - CLIENT_URL=budgetboard-client
+      - POSTGRES_USER=postgres
+      - POSTGRES_HOST=budgetboard-db
+      - POSTGRES_DATABASE=budgetboard
+      - POSTGRES_PASSWORD=DN9bbNgDjHkU5nLjUOz0wzPKOCh9Ny3j
+      - Logging__LogLevel__Default=Information
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     networks:
       - budgetboard
 
@@ -42,25 +53,14 @@ services:
     hostname: budgetboard-db
     restart: always
     pull_policy: always
-    security_opt:
-      - no-new-privileges:true
-    volumes:
-      - /var/lib/srv/$USER/docker/teelur/budget-board/server/release/rootfs/data/db/postgres:/var/lib/postgresql/data:rw
+    logging: *default-logging
     environment:
-      POSTGRES_DB: budgetboard
-      POSTGRES_USER: budgetboarduser
-      POSTGRES_PASSWORD: budgetboardpass
+      - POSTGRES_DB=budgetboard
+      - POSTGRES_PASSWORD=DN9bbNgDjHkU5nLjUOz0wzPKOCh9Ny3j
+    volumes:
+      - '/var/lib/srv/$USER/docker/db/postgres/budgetboard:/var/lib/postgresql/data'
     healthcheck:
-      test:
-        [
-          'CMD',
-          'pg_isready',
-          '-q',
-          '-d',
-          'budgetboard',
-          '-U',
-          'budgetboarduser',
-        ]
+      test: ['CMD-SHELL', 'pg_isready', '-d', 'budgetboard', '-U', 'postgres']
       timeout: 45s
       interval: 10s
       retries: 10
