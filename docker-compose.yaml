@@ -11,7 +11,7 @@ services:
   client:
     image: ghcr.io/teelur/budget-board/client:release
     container_name: budgetboard-client
-    hostname: budgetboard-client
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
     restart: always
     pull_policy: always
     logging: *default-logging
@@ -29,7 +29,7 @@ services:
   server:
     image: ghcr.io/teelur/budget-board/server:release
     container_name: budgetboard-server
-    hostname: budgetboard-server
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
     restart: always
     pull_policy: always
     logging: *default-logging
@@ -58,7 +58,7 @@ services:
       - POSTGRES_DB=budgetboard
       - POSTGRES_PASSWORD=DN9bbNgDjHkU5nLjUOz0wzPKOCh9Ny3j
     volumes:
-      - '/var/lib/srv/$USER/docker/db/postgres/budgetboard:/var/lib/postgresql/data'
+      - '/var/lib/srv/$USER/databases/postgres/budgetboard:/var/lib/postgresql/data'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready', '-d', 'budgetboard', '-U', 'postgres']
       timeout: 45s
