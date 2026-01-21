@@ -1,0 +1,73 @@
+# nginx proxy address - http://172.17.0.1:60236
+
+name: budgetboard
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
+services:
+  client:
+    image: ghcr.io/teelur/budget-board/client:release
+    container_name: budgetboard-client
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      PORT: 80
+      VITE_API_URL: budgetboard-client
+    ports:
+      - '127.0.0.1:58001:80'
+    depends_on:
+      - db
+      - server
+    networks:
+      - budgetboard
+
+  server:
+    image: ghcr.io/teelur/budget-board/server:release
+    container_name: budgetboard-server
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      AUTO_UPDATE_DB: true
+      CLIENT_URL: budgetboard-client
+      POSTGRES_USER: postgres
+      POSTGRES_HOST: budgetboard-db
+      POSTGRES_DATABASE: budgetboard
+      POSTGRES_PASSWORD: DN9bbNgDjHkU5nLjUOz0wzPKOCh9Ny3j
+      Logging__LogLevel__Default: Information
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budgetboard
+
+  db:
+    image: postgres:17
+    container_name: budgetboard-db
+    hostname: budgetboard-db
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      POSTGRES_DB: budgetboard
+      POSTGRES_PASSWORD: DN9bbNgDjHkU5nLjUOz0wzPKOCh9Ny3j
+    volumes:
+      - './rootfs/db/postgres:/var/lib/postgresql/data'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready', '-d', 'budgetboard', '-U', 'postgres']
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    networks:
+      - budgetboard
+
+networks:
+  budgetboard:
+    name: budgetboard
+    external: false
