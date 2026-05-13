@@ -58,7 +58,7 @@ services:
       TZ: ${TZ:-America/New_York}
       AUTO_UPDATE_DB: true
       CLIENT_URL: budgetboard-client
-      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
       POSTGRES_HOST: budgetboard-db
       POSTGRES_DATABASE: ${DB_CREATE_DATABASE_NAME:-budgetboard}
       POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
@@ -80,7 +80,7 @@ services:
     environment:
       TZ: ${TZ:-America/New_York}
       POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-budgetboard}
-      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
       POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
       CONTAINER_NAME: budgetboard-db
     volumes:
