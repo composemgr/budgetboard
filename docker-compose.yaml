@@ -9,7 +9,7 @@ x-logging: &default-logging
 
 services:
   client:
-    image: ghcr.io/teelur/budget-board/client:release
+    image: ghcr.io/teelur/budget-board/client:v3
     container_name: budgetboard-client
     hostname: ${BASE_HOST_NAME:-$HOSTNAME}
     restart: always
@@ -17,12 +17,15 @@ services:
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
-      PORT: 80
-      VITE_API_URL: budgetboard-server
+      PORT: 6253
+      VITE_SERVER_ADDRESS: budgetboard-server
+      VITE_OIDC_ENABLED: false
+      VITE_DISABLE_NEW_USERS: false
+      VITE_DISABLE_LOCAL_AUTH: false
       CONTAINER_NAME: budgetboard-client
       HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
     ports:
-      - '172.17.0.1:60236:80'
+      - '172.17.0.1:60236:6253'
     depends_on:
       - db
       - server
@@ -34,7 +37,7 @@ services:
       - 'traefik.enable=true'
       - 'cloudflare.enable=true'
       - 'traefik.docker.network=proxy'
-      - 'cloudflare.service=http://budgetboard-client:80'
+      - 'cloudflare.service=http://budgetboard-client:6253'
       - 'cloudflare.hostname=budgetboard.${CLOUDFLARE_ZONE_NAME:-}'
       - 'traefik.http.routers.budgetboard-client.entrypoints=http'
       - 'traefik.http.routers.budgetboard-client-secure.tls=true'
@@ -45,10 +48,10 @@ services:
       - 'traefik.http.routers.budgetboard-client-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
       - 'traefik.http.routers.budgetboard-client-secure.tls.certresolver=cloudflare'
       - 'traefik.http.routers.budgetboard-client-secure.service=budgetboard-client'
-      - 'traefik.http.services.budgetboard-client.loadbalancer.server.port=80'
+      - 'traefik.http.services.budgetboard-client.loadbalancer.server.port=6253'
 
   server:
-    image: ghcr.io/teelur/budget-board/server:release
+    image: ghcr.io/teelur/budget-board/server:v3
     container_name: budgetboard-server
     hostname: budgetboard-server
     restart: always
@@ -56,13 +59,17 @@ services:
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
-      AUTO_UPDATE_DB: true
-      CLIENT_URL: budgetboard-client
+      CLIENT_ADDRESS: budgetboard-client
       POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
       POSTGRES_HOST: budgetboard-db
+      POSTGRES_PORT: 5432
       POSTGRES_DATABASE: ${DB_CREATE_DATABASE_NAME:-budgetboard}
       POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
       Logging__LogLevel__Default: Information
+      DISABLE_NEW_USERS: false
+      DISABLE_LOCAL_AUTH: false
+      AUTO_UPDATE_DB: true
+      DISABLE_AUTO_SYNC: false
       CONTAINER_NAME: budgetboard-server
     depends_on:
       db:
