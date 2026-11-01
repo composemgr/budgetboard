@@ -1,0 +1,102 @@
+name: budgetboard
+x-logging: &default-logging
+  options:
+    max-size: '5m'
+    max-file: '1'
+  driver: json-file
+
+services:
+  client:
+    image: ghcr.io/teelur/budget-board/client:v3
+    container_name: budgetboard-client
+    hostname: ${BASE_HOST_NAME:-$HOSTNAME}
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      PORT: 6253
+      VITE_SERVER_ADDRESS: budgetboard-server
+      VITE_OIDC_ENABLED: false
+      VITE_DISABLE_NEW_USERS: false
+      VITE_DISABLE_LOCAL_AUTH: false
+      CONTAINER_NAME: budgetboard-client
+      HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
+    depends_on:
+      db:
+        condition: service_healthy
+      server:
+        condition: service_started
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.docker.network=traefik'
+      - 'traefik.http.routers.budgetboard-client.entrypoints=http'
+      - 'traefik.http.routers.budgetboard-client.rule=Host(`${BASE_HOST_NAME:-$HOSTNAME}`)'
+      - 'traefik.http.routers.budgetboard-client.middlewares=budgetboard-client-https-redirect'
+      - 'traefik.http.middlewares.budgetboard-client-https-redirect.redirectscheme.scheme=https'
+      - 'traefik.http.routers.budgetboard-client-secure.entrypoints=https'
+      - 'traefik.http.routers.budgetboard-client-secure.rule=Host(`${BASE_HOST_NAME:-$HOSTNAME}`)'
+      - 'traefik.http.routers.budgetboard-client-secure.tls.certresolver=cloudflare'
+      - 'traefik.http.routers.budgetboard-client-secure.service=budgetboard-client'
+      - 'traefik.http.services.budgetboard-client.loadbalancer.server.port=6253'
+    networks:
+      - budgetboard
+      - traefik
+
+  server:
+    image: ghcr.io/teelur/budget-board/server:v3
+    container_name: budgetboard-server
+    hostname: budgetboard-server
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      ASPNETCORE_HTTP_PORTS: 8080
+      CLIENT_ADDRESS: budgetboard-client
+      POSTGRES_HOST: budgetboard-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DATABASE: ${DB_CREATE_DATABASE_NAME:-budgetboard}
+      POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
+      Logging__LogLevel__Default: Information
+      DISABLE_NEW_USERS: false
+      DISABLE_LOCAL_AUTH: false
+      AUTO_UPDATE_DB: true
+      DISABLE_AUTO_SYNC: false
+      CONTAINER_NAME: budgetboard-server
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - budgetboard
+
+  db:
+    image: postgres:latest
+    container_name: budgetboard-db
+    hostname: budgetboard-db
+    restart: always
+    pull_policy: always
+    logging: *default-logging
+    environment:
+      TZ: ${TZ:-America/New_York}
+      POSTGRES_DB: ${DB_CREATE_DATABASE_NAME:-budgetboard}
+      POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
+      CONTAINER_NAME: budgetboard-db
+    volumes:
+      - './volumes/db/postgres/budgetboard:/var/lib/postgresql:z'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}']
+      timeout: 45s
+      interval: 10s
+      retries: 10
+    networks:
+      - budgetboard
+
+networks:
+  budgetboard:
+    name: budgetboard
+    external: false
+  traefik:
+    external: true

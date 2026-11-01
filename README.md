@@ -8,13 +8,12 @@ Personal finance and budget tracking application
 
 ## 🚀 Services
 
-- **client**: ghcr.io/teelur/budget-board/client:release
-- **server**: ghcr.io/teelur/budget-board/server:release
+- **client**: ghcr.io/teelur/budget-board/client:v3
+- **server**: ghcr.io/teelur/budget-board/server:v3
 
 ### Infrastructure Components
 
-- **db**: Postgres database
-
+- **db**: postgres:latest
 
 ## 📦 Installation
 
@@ -27,7 +26,8 @@ curl -q -LSsf "https://raw.githubusercontent.com/composemgr/budgetboard/main/doc
 ```bash
 git clone "https://github.com/composemgr/budgetboard" ~/.local/srv/docker/budgetboard
 cd ~/.local/srv/docker/budgetboard
-docker compose up -d
+cp default.env .env
+docker compose --env-file .env up -d
 ```
 
 ### Option 3: Using composemgr
@@ -41,17 +41,56 @@ composemgr install budgetboard
 
 ```shell
 TZ=America/New_York
+DB_CREATE_DATABASE_NAME=budgetboard
+DB_ADMIN_NAME=postgres
+DB_ADMIN_PASS=changeme_admin_password
 ```
 
-See `docker-compose.yaml` for complete list of configurable options.
+See `docker-compose.yaml` for the complete list of configurable options.
+
+### Environment Files
+
+`default.env.sample` holds the full set of variables and is copied to `.env`
+before starting the stack:
+
+```bash
+cp default.env .env
+docker compose --env-file .env up -d
+```
+
+`app.env.sample` holds the app-specific overrides and is copied to `app.env`:
+
+```bash
+cp app.env.sample app.env
+```
+
+`composemgr up` applies `app.env` and `default.env` automatically. Raw
+`docker compose` commands need `--env-file .env` to pick up the same values.
+
+### Reverse Proxy
+
+Three standalone compose files ship in this repo:
+
+| File | Use |
+|------|-----|
+| `docker-compose.yaml` | Default, published on `172.17.0.1:64125` |
+| `docker-compose.traefik.yaml` | Behind an existing external `traefik` network |
+| `docker-compose.tunnel.yaml` | Behind an existing external `cloudflare` tunnel network |
+
+```bash
+docker compose -f docker-compose.traefik.yaml --env-file .env up -d
+```
+
+The proxy variants publish no host ports; the app is reached only through the
+proxy network.
 
 ## 🌐 Access
 
-- **Web Interface**: http://172.17.0.1:60236
+- **Web Interface**: http://172.17.0.1:64125
 
 ## 📂 Volumes
 
-- `./volumes/data/db/postgres` - Data storage
+- `./volumes/db/postgres/budgetboard` - Database data
 
 ## 🔐 Security
 
@@ -64,26 +103,26 @@ See `docker-compose.yaml` for complete list of configurable options.
 ## 🔍 Logging
 
 ```shell
-docker compose logs -f client
+docker compose --env-file .env logs -f client
 ```
 
 ## 🛠️ Management
 
 ```bash
 # Start services
-docker compose up -d
+docker compose --env-file .env up -d
 
 # Stop services
-docker compose down
+docker compose --env-file .env down
 
 # Update to latest images
-docker compose pull && docker compose up -d
+docker compose --env-file .env pull && docker compose --env-file .env up -d
 
 # View logs
-docker compose logs -f
+docker compose --env-file .env logs -f
 
 # Restart services
-docker compose restart
+docker compose --env-file .env restart
 ```
 
 ## 📋 Requirements

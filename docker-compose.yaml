@@ -1,4 +1,4 @@
-# nginx proxy address - http://172.17.0.1:60236
+# nginx proxy address - http://172.17.0.1:64125
 
 name: budgetboard
 x-logging: &default-logging
@@ -25,30 +25,14 @@ services:
       CONTAINER_NAME: budgetboard-client
       HOSTNAME: ${BASE_HOST_NAME:-$HOSTNAME}
     ports:
-      - '172.17.0.1:60236:6253'
+      - '172.17.0.1:64125:6253'
     depends_on:
-      - db
-      - server
+      db:
+        condition: service_healthy
+      server:
+        condition: service_started
     networks:
       - budgetboard
-      - proxy
-      - cloudflare
-    labels:
-      - 'traefik.enable=true'
-      - 'cloudflare.enable=true'
-      - 'traefik.docker.network=proxy'
-      - 'cloudflare.service=http://budgetboard-client:6253'
-      - 'cloudflare.hostname=budgetboard.${CLOUDFLARE_ZONE_NAME:-}'
-      - 'traefik.http.routers.budgetboard-client.entrypoints=http'
-      - 'traefik.http.routers.budgetboard-client-secure.tls=true'
-      - 'traefik.http.routers.budgetboard-client.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
-      - 'traefik.http.middlewares.budgetboard-client-https-redirect.redirectscheme.scheme=https'
-      - 'traefik.http.routers.budgetboard-client.middlewares=budgetboard-client-https-redirect'
-      - 'traefik.http.routers.budgetboard-client-secure.entrypoints=https'
-      - 'traefik.http.routers.budgetboard-client-secure.rule=Host($(${BASE_HOST_NAME:-$HOSTNAME}))'
-      - 'traefik.http.routers.budgetboard-client-secure.tls.certresolver=cloudflare'
-      - 'traefik.http.routers.budgetboard-client-secure.service=budgetboard-client'
-      - 'traefik.http.services.budgetboard-client.loadbalancer.server.port=6253'
 
   server:
     image: ghcr.io/teelur/budget-board/server:v3
@@ -59,11 +43,12 @@ services:
     logging: *default-logging
     environment:
       TZ: ${TZ:-America/New_York}
+      ASPNETCORE_HTTP_PORTS: 8080
       CLIENT_ADDRESS: budgetboard-client
-      POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
       POSTGRES_HOST: budgetboard-db
       POSTGRES_PORT: 5432
       POSTGRES_DATABASE: ${DB_CREATE_DATABASE_NAME:-budgetboard}
+      POSTGRES_USER: ${DB_ADMIN_NAME:-postgres}
       POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
       Logging__LogLevel__Default: Information
       DISABLE_NEW_USERS: false
@@ -91,7 +76,7 @@ services:
       POSTGRES_PASSWORD: ${DB_ADMIN_PASS:-changeme_admin_password}
       CONTAINER_NAME: budgetboard-db
     volumes:
-      - './volumes/data/db/postgres/budgetboard:/var/lib/postgresql/data'
+      - './volumes/db/postgres/budgetboard:/var/lib/postgresql:z'
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}']
       timeout: 45s
@@ -104,7 +89,3 @@ networks:
   budgetboard:
     name: budgetboard
     external: false
-  proxy:
-    external: true
-  cloudflare:
-    external: true
